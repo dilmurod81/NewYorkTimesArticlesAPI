@@ -1,0 +1,83 @@
+# obtain the URI for access to articles for a given query, page number, sorting order
+def get_URI(query:str, page_num:int, sort_order:str, API_KEY:str) -> str:
+    
+    # create a URI string
+    URI = 'https://api.nytimes.com/svc/search/v2/articlesearch.json?q='+query
+    
+    # if a page number is mentioned, add it to the URI
+    if page_num:
+        add_to_URI = '&page='+str(page_num)
+        URI+= add_to_URI
+    
+    # if the sorting order is mentioned, add it to the URI
+    if sort_order:
+        add_to_URI = '&sort='+sort_order
+        URI += add_to_URI
+    
+    # add the given API key to the URI
+    add_to_URI = '&api-key='+API_KEY
+    URI += add_to_URI
+    
+    # return the new URI 
+    return URI
+    
+# get the URI needed for the articles related to Winter Olympics in page 1 from newest to oldest
+URI = get_URI(query='Winter Olympics', page_num=1, sort_order='newest', API_KEY=API_KEY)
+
+import requests
+
+# make a request to the server 
+response = requests.get(URI)
+
+# parse the response (only works for JSON format)
+data = response.json() 
+
+# print response
+print(data)
+
+
+from pandas.io.json import json_normalize
+
+# convert JSON response to a data frame
+df = json_normalize(data['response'], record_path=['docs'])
+
+# show the headline and publication date 
+df[['headline.main', 'pub_date']].head(5)
+
+
+# number of articles stored in data frame
+print('Number of articles in dataframe: {}'.format(df.shape[0]))
+
+import time 
+import pandas as pd
+
+# create a dataframe that will store all articles 
+df = pd.DataFrame()
+
+# collect the data for articles in the first 100 pages
+for page_num in range(1,101):
+    try:
+        # get the URI needed for the articles related to Winter Olympics from newest to oldest
+        URI = get_URI(query='Winter Olympics', page_num=page_num, sort_order='newest', API_KEY=API_KEY)
+        
+        # make a request with the url
+        response = requests.get(URI)
+        
+        # collect the data from the response in JSON format
+        data = response.json() 
+        
+        # convert data to a data frame
+        df_request = json_normalize(data['response'], record_path=['docs'])
+
+        # append df_request to the dataframe
+        df = pd.concat([df, df_request])
+        
+        # pause to stay within the limit of number of requests
+        time.sleep(6)
+
+    # if there isn't a page number for the query, stop the loop
+    except:
+        print('There is no page number {} for this query.'.format(page_num))
+        break
+# number of articles
+print('Number of articles in the new data frame: {}'.format(df.shape[0]))
